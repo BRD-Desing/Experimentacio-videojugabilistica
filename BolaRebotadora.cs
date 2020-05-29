@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -15,7 +15,8 @@ public class BolaRebotadora : MonoBehaviour {
     private Vector3 positionpasada;
 
 
-    public LayerMask queEsT;
+    public LayerMask queEsPared;
+    public LayerMask queEsPiso;
     public GameObject puntoCon;
     private Rigidbody2D rb2d;
 
@@ -41,24 +42,31 @@ public class BolaRebotadora : MonoBehaviour {
             positionpasada = transform.position;
         }
 
-        tocandoMuro = Physics2D.Raycast(puntoCon.transform.position, Vector2.right, radio, queEsT);
+       
+    }
+
+    private bool tocandoPiso;
+	
+	
+	
+    private void FixedUpdate()
+    {
+        tocandoMuro = Physics2D.OverlapCircle(gameObject.transform.position, radio, queEsPared);
+        tocandoPiso = Physics2D.OverlapCircle(gameObject.transform.position, radio, queEsPiso);
+
+        if (tocandoPiso == true)
+        {
+            rb2d.velocity = new Vector2(rb2d.velocity.x, rb2d.velocity.y * -1);
+        }
+
+        if (tocandoMuro == true)
+        {
+            rb2d.velocity = new Vector2(rb2d.velocity.x * -1, rb2d.velocity.y);
+        }
     }
 
     private void OnDrawGizmos()
     {
         Gizmos.DrawLine(gameObject.transform.position, new Vector2(gameObject.transform.position.x + radio, gameObject.transform.position.y));
-    }
-
-    private void OnTriggerEnter2D(Collider2D collision)
-    {
-        if (collision.gameObject.tag == "pared")
-        {
-            rb2d.velocity = new Vector2(rb2d.velocity.x * -1, rb2d.velocity.y);
-        }
-
-        if (collision.gameObject.tag == "Ground")
-        {
-            rb2d.velocity = new Vector2(rb2d.velocity.x, rb2d.velocity.y * -1);
-        }
     }
 }
