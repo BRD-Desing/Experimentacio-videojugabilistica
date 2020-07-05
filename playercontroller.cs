@@ -42,7 +42,7 @@ public class playercontroller : MonoBehaviour {
     
     
     //Dash Setting
-    private bool itsdashing;
+    public bool itsdashing;
     public float dashTime;
     public float dashSpeed;
     public float distanceBetweenImage;
@@ -51,6 +51,8 @@ public class playercontroller : MonoBehaviour {
     private float lastImageXpos;
     private float lastDash = -100f;
     private bool canDash = false;
+
+    public float radioDeDenegacion;
 
     public float direccion = 1;
 
@@ -73,9 +75,11 @@ public class playercontroller : MonoBehaviour {
     public bool trans = false;
     public bool jump;
     public bool revers;
+    private bool puedeRotar;
     public bool canMoeve = true;
     public bool canJump = true;
     private bool flyJump;
+    public bool noAquiNo = false;  
 
     private bool clicder = false;
    
@@ -95,7 +99,6 @@ public class playercontroller : MonoBehaviour {
 
     Rigidbody2D rb2d;
     SpriteRenderer sprite;
-    CapsuleCollider2D collid;
     AudioSource jumpS;
 
     public Transform pisoT;
@@ -107,17 +110,20 @@ public class playercontroller : MonoBehaviour {
     public GameObject contenedor;
 
 
-
     // Use this for initialization
     void Start() {
         anim = GetComponent<Animator>();
         rb2d = GetComponent<Rigidbody2D>();
         sprite = GetComponent<SpriteRenderer>();
-        collid = GetComponent<CapsuleCollider2D>();
         jumpS = GetComponent<AudioSource>();
 
         BrazoAnim = brazo.GetComponent<Animator>();
 
+        puedeRotar = true;
+        canDash = true;
+        llamado = true;
+        tiempoColdDownHabilidad = 0;
+        gravedadVariable = -9.8f;
 
     }
 
@@ -134,49 +140,20 @@ public class playercontroller : MonoBehaviour {
         anim.SetBool("reverse", revers);
         anim.SetBool("meleeMode", meleeMode);
         anim.SetBool("enLaHabilidad", EnLaHabilidad);
-        anim.SetBool("movimiento", MovimientoEnProceso);
+        anim.SetBool("HMovimiento", MovimientoEnProceso);
+        anim.SetBool("RoketP", golpeCohete);
 
-		anim.SetInteger ("TipoHabilidad", TipoHabilidad);
+        anim.SetInteger ("TipoHabilidad", TipoHabilidad);
 		anim.SetInteger ("HCuchillo", tipoHabilidadCuchillo);
 		anim.SetInteger ("TipoMovimiento", TipoDeMovimiento);
 
-
-        BrazoAnim.SetBool("invis", itsdashing);
-       
-
-        if (meleeMode == false)
-        {
-            if (EnLaHabilidad == true)
-            {
-                BrazoAnim.SetBool("invis", EnLaHabilidad);
-            }else if (itsdashing == false)
-            {
-                BrazoAnim.SetBool("invis", MovimientoEnProceso);
-            }
-            
-        }
-        else
-        {
-            BrazoAnim.SetBool("invis", meleeMode);
-        }
+        
             
         grounded = Physics2D.OverlapCircle(pisoT.position, areaPiso, whatIsGround);
-       
-            brazo.GetComponent<brazocontroller>().invis = EnLaHabilidad;
-       
-       
-        brazo.GetComponent<brazocontroller>().meleeMo = meleeMode;
 
-        if (EnLaHabilidad == false)
-        {
-            if (meleeMode == true)
-            {
-                brazo.GetComponent<brazocontroller>().invis = true;
-            }
-            else {
-                brazo.GetComponent<brazocontroller>().invis = false;
-            }
-        }
+        noAquiNo = Physics2D.OverlapCircle(mira.position, radioDeDenegacion, whatIsGround);
+
+
 
         //Mouse
 		mira.position = Camera.main.ScreenToWorldPoint(new Vector3(
@@ -186,8 +163,8 @@ public class playercontroller : MonoBehaviour {
             );
 
         ComprovadoresDeInputs();
-        cambioDeModo();
-        meleeA();
+        CambioDeModo();
+        MeleeA();
         SeleccionDeHabilidad();
     }
 
@@ -228,25 +205,29 @@ public class playercontroller : MonoBehaviour {
             {
                 rb2d.velocity = new Vector2(rb2d.velocity.x * multiplicador, rb2d.velocity.y);
             }
-                
-           
+
+
 
             //Mira
+            if (puedeRotar == true)
+            {
+
                 if (mira.transform.position.x < gameObject.transform.position.x)
                 {
-                     if (rotado)
-                     {
-                         Rotado();
-                     }
-                  
+                    if (rotado)
+                    {
+                        Rotado();
+                    }
+
                 }
                 else if (mira.transform.position.x > gameObject.transform.position.x)
                 {
                     if (!rotado)
                     {
-                         Rotado();
+                        Rotado();
                     }
                 }
+            }
 
             if (mira.position.x < gameObject.transform.position.x && Xmov > 0 ||
                 mira.position.x > gameObject.transform.position.x && Xmov < 0)
@@ -281,11 +262,13 @@ public class playercontroller : MonoBehaviour {
         }
 
 
-
+        impulsor = Input.GetButton("Fire2");
 
 
         CheckDash();
         Habilidad1Cuchillo();
+        GolpeImpulsor();
+        contenedor.transform.position = gameObject.transform.position;
     }
 
 
@@ -316,20 +299,25 @@ public class playercontroller : MonoBehaviour {
     public float tiempoDeDuracionDeLaHabilidadMelee;
     public float meleeBackDashVelocity;
 
+    public float tiempoTotalDelGolpe = 0;
+    public float referenciaDelGolpe;
+    public float velocidadDelGolpe;
+    public int mirarA;
+
     private bool backDashActivado;
     private bool puedeInvocar = true;
 
     public float antesDeDesplasarce;
     public float delayDespazamiento;
 
-    private void meleeA()
+    private void MeleeA()
     {
-        
+        anim.SetInteger("TipoMelee", meleeTipe);
+        anim.SetInteger("HCuchillo", tipoHabilidadCuchillo);
 
         if (Time.time >= tiempoPrarElSiguiemte && grounded == true)
         {
-            anim.SetInteger("TipoMelee", meleeTipe);
-            anim.SetInteger("HCuchillo", tipoHabilidadCuchillo);
+            
 
 
             if (meleeMode == true && Input.GetButtonDown("Fire1"))
@@ -360,10 +348,18 @@ public class playercontroller : MonoBehaviour {
             //   HHH
             //  HHHHH
 
-            if (tipoHabilidadCuchillo == 1 && Input.GetButtonDown("Fire2"))
+            if (tipoHabilidadCuchillo == 1 && Input.GetButtonDown("Fire2") && MovimientoEnProceso == false)
             {
-
                 EnEsperaDelBackDash();  
+            }
+
+            //  D
+            //  O
+            //  S
+
+            if (tipoHabilidadCuchillo == 2 && MovimientoEnProceso == false)
+            {
+                Impulsor();
             }
 
         }
@@ -433,11 +429,120 @@ public class playercontroller : MonoBehaviour {
         }
     }
 
+    public bool llamado = true;
+    private bool impulsor;
+
+    private bool speedPunch;
+    void Impulsor()
+    {
+        
+        puedeRotar = true;
+        if (impulsor == true && tiempoColdDownHabilidad <= 0 && MovimientoEnProceso == false)
+        {
+            
+            if (llamado == true)
+            {
+                anim.SetTrigger("meleeHabilidad");
+                llamado = false;
+            }
+            rb2d.velocity = new Vector2(0, rb2d.velocity.y);
+            canJump = false;
+            canMoeve = false;
+            EnLaHabilidad = true;
+
+            tiempoDeLaHabilidad = tiempoTotalDelGolpe;
+
+            if (mira.transform.position.x < gameObject.transform.position.x)
+            {
+                if (rotado)
+                {
+                    Rotado();
+                }
+
+            }
+            else if (mira.transform.position.x > gameObject.transform.position.x)
+            {
+                if (!rotado)
+                {
+                    Rotado();
+                }
+            }
+
+            if (mira.transform.position.x > gameObject.transform.position.x)
+            {
+                mirarA = 1;
+            }
+            else if (mira.transform.position.x <= gameObject.transform.position.x)
+            {
+                mirarA = -1;
+            }
+
+            if (tiempoTotalDelGolpe <= 0.6f)
+            {
+                tiempoTotalDelGolpe += Time.deltaTime;
+            }
+        }
+
+        if (Input.GetButtonUp("Fire2") && tiempoTotalDelGolpe != 0.0000)
+        {
+            if (llamado == false)
+            {
+                
+                llamado = true;
+            }
+            
+            if (tiempoTotalDelGolpe < 0.2f)
+            {
+                tiempoTotalDelGolpe = 0.2f;
+            }
+            speedPunch = true;
+            golpeCohete = true;
+            referenciaDelGolpe = tiempoTotalDelGolpe;
+            clicder = true;
+
+           
+        }
+       
+    }
+
+    private bool golpeCohete;
+    void GolpeImpulsor()
+    {
+        
+        if (speedPunch == true)
+        {
+
+            if (referenciaDelGolpe > 0)
+            {
+                EnLaHabilidad = true;
+                puedeRotar = false;
+                rb2d.velocity = new Vector2(velocidadDelGolpe * mirarA, rb2d.velocity.y);
+                referenciaDelGolpe -= Time.deltaTime;
+                tiempoColdDownHabilidad = tiempoTotalDelGolpe * 4;
+
+            }
+
+            if (referenciaDelGolpe <= 0)
+            {
+                golpeCohete = false;
+                puedeRotar = true;
+                canJump = true;
+                canMoeve = true;
+                clicder = false;
+                speedPunch = false;
+                EnLaHabilidad = false;
+               
+                tiempoTotalDelGolpe = 0;
+            }
+        }
+       
+    }
+
 
 
     float tiempoResp;
     bool puedeCam = true;
-    private void cambioDeModo()
+    private void CambioDeModo()
     {
         if (tiempoResp > 0)
         {
@@ -466,84 +571,92 @@ public class playercontroller : MonoBehaviour {
     }
 
 
-	//	HHHH	HHHH		AAAA		BBBBBBB		IIIIII
-	//	HHHH	HHHH	   AAAAAA		BB	 BBB	 IIII
-	//	HHHHHHHHHHHH	  AAAAAAAA		BBBBBB		 IIII
-	//	HHHH	HHHH	 AAAA  AAAA		BB   BBB	 IIII
-	//	HHHH	HHHH	AAAA	AAAA	BBBBBBB		IIIIII
+    //	HHHH	HHHH		AAAA		BBBBBBB		IIIIII
+    //	HHHH	HHHH	   AAAAAA		BB	 BBB	 IIII
+    //	HHHHHHHHHHHH	  AAAAAAAA		BBBBBB		 IIII
+    //	HHHH	HHHH	 AAAA  AAAA		BB   BBB	 IIII
+    //	HHHH	HHHH	AAAA	AAAA	BBBBBBB		IIIIII
 
 
     void ReduccionDeTiempo()
     {
-        if (tiempoDeLaHabilidad != 0)
+        if (itsdashing == false)
         {
-            tiempoDeLaHabilidad -= Time.deltaTime;
+            if (tiempoDeLaHabilidad != 0)
+            {
+                tiempoDeLaHabilidad -= Time.deltaTime;
+            }
+            if (tiempoDeLaHabilidad <= 0)
+            {
+                EnLaHabilidad = false;
+                MovimientoEnProceso = false;
+                rb2d.gravityScale = 4;
+                canMoeve = true;
+            }
         }
-        if (tiempoDeLaHabilidad <= 0)
-        {
-            EnLaHabilidad = false;
-            MovimientoEnProceso = false;
-            rb2d.gravityScale = 4;
-            canMoeve = true;
-        }
+        
     }
+        
 		
 
     private float tiempoColddownMovimiento;
     private void SeleccionDeHabilidad()
     {
-        if (tiempoColdDownHabilidad != 0)
+        ReduccionDeTiempo();
+
+        if (tiempoColdDownHabilidad > 0)
         {
             tiempoColdDownHabilidad -= Time.deltaTime;
         }
 
-        if (tiempoColddownMovimiento != 0)
+        if (tiempoColddownMovimiento > 0)
         {
             tiempoColddownMovimiento -= Time.deltaTime;
         }
 
-        ReduccionDeTiempo();
+        
 
-        if (TipoHabilidad == 1 && tiempoColdDownHabilidad <= 0)
+        if (TipoHabilidad == 1 && tiempoColdDownHabilidad <= 0 && MovimientoEnProceso == false)
         {
             SobreCarga();
         }
 
-        if (TipoDeMovimiento == 1 && tiempoColddownMovimiento <= 0)
+        if (TipoDeMovimiento == 1 && tiempoColddownMovimiento <= 0 && EnLaHabilidad == false)
         {
-            canDash = true;
-            if (Input.GetButtonDown("Dash"))
+            if (Input.GetButtonDown("Dash") && canDash == true)
             {
                 AttempToDash();
             }
         }else if (TipoDeMovimiento == 2 && tiempoColddownMovimiento <= 0)
         {
             Teleportacion();
-        }else if (TipoDeMovimiento == 3 && tiempoColddownMovimiento <= 0)
+        }else if (TipoDeMovimiento == 3 && tiempoColddownMovimiento <= 0 && EnLaHabilidad == false)
         {
             SaltoVertical();
-        }else if (TipoDeMovimiento == 4 && tiempoColddownMovimiento <= 0)
+        }else if (TipoDeMovimiento == 4 && tiempoColddownMovimiento <= 0 && EnLaHabilidad == false)
         {
             Aceleracion();
+        }else if (TipoDeMovimiento == 5 && tiempoColddownMovimiento <= 0 && EnLaHabilidad == false)
+        {
+            InvercionDeGravedad();
         }
     }
 
-    //Sobre Carga
+    //Sobre Cargaw
     private float tiempoDeLaHabilidad;
     private void SobreCarga()
     {
 
         if (meleeMode == false)
         {
-            if (Input.GetButtonDown("Fire2") && EnLaHabilidad == false)
+            if (Input.GetButtonDown("Fire2") && EnLaHabilidad == false && tiempoDeLaHabilidad <= 0)
             {
                 rb2d.gravityScale = 0;
                 rb2d.velocity = new Vector2(0, 0);
                 canMoeve = false;
-                tiempoDeLaHabilidad = 0.6f;
+                tiempoDeLaHabilidad = 0.5f;
                 brazo.GetComponent<brazocontroller>().invis = true;
                 Instantiate(areaDeEfecto, gameObject.transform.position, Quaternion.identity);
-                anim.SetTrigger("SobreCarga");
                 tiempoColdDownHabilidad = 2;
                 EnLaHabilidad = true;
             }
@@ -556,6 +669,7 @@ public class playercontroller : MonoBehaviour {
     private void AttempToDash()
     {
         itsdashing = true;
+        canDash = false;
 		MovimientoEnProceso = true;
         dashtimeLeft = dashTime;
         lastDash = Time.time;
@@ -573,8 +687,7 @@ public class playercontroller : MonoBehaviour {
 
                 if (Mathf.Abs(transform.position.x - lastImageXpos) > distanceBetweenImage)
                 {
-                    trypref.GetComponent<SpriteRenderer>().flipX = sprite.flipX;
-                    Instantiate(trypref, transform.position, Quaternion.identity);
+                    Instantiate(trypref, transform.position, gameObject.transform.rotation);
                     
                 }
             }
@@ -582,13 +695,15 @@ public class playercontroller : MonoBehaviour {
             if (dashtimeLeft <= 0)
             {
                 tiempoColddownMovimiento = 1f;
-				MovimientoEnProceso = false;
-                canDash = false;
+                MovimientoEnProceso = false;
+                canDash = true;
                 itsdashing = false;
                 canMoeve = true;
                 canJump = true;
             }
         }
+
+       
     }
 
 
@@ -596,27 +711,38 @@ public class playercontroller : MonoBehaviour {
     private float antesDeIr;
     private bool inicio = false;
     Vector2 mouseP;
+
     private void Teleportacion()
     {
-        if (Input.GetButtonDown("Dash") && inicio == false) {
-            mouseP = mira.position;
-            MovimientoEnProceso = true;
-            tiempoDeLaHabilidad = 1.1f;
-            antesDeIr = 0.7f;
-            
-            inicio = true;
-        }
-        if (antesDeIr > 0)
+        if (EnLaHabilidad == false)
         {
-            antesDeIr -= Time.deltaTime;
-            rb2d.velocity = new Vector2(0, 0);
+            if (Vector3.Distance(gameObject.transform.position, mira.position) <= 18 && Input.GetButtonDown("Dash") && inicio == false && noAquiNo == false)
+            {
+                mouseP = mira.position;
+
+                MovimientoEnProceso = true;
+                canMoeve = false;
+                tiempoDeLaHabilidad = 1.1f;
+                antesDeIr = 0.7f;
+
+                inicio = true;
+            }
+            if (antesDeIr > 0)
+            {
+                rb2d.gravityScale = 0;
+                rb2d.velocity = new Vector2(0, 0);
+                antesDeIr -= Time.deltaTime;
+                rb2d.velocity = new Vector2(0, 0);
+            }
+            if (antesDeIr <= 0 && inicio == true)
+            {
+                rb2d.gravityScale = 4;
+                gameObject.transform.position = mouseP;
+                inicio = false;
+                tiempoColddownMovimiento = 3;
+            }
         }
-        if (Vector3.Distance(gameObject.transform.position, mira.position) <= 15 && antesDeIr <= 0 && inicio == true)
-        {
-            gameObject.transform.position = mouseP;
-            inicio = false;
-            tiempoColddownMovimiento = 3;
-        }
+       
     }
 
     private bool saltoActivado;
@@ -644,8 +770,13 @@ public class playercontroller : MonoBehaviour {
                 dobleSalto = true;
                 saltoActivado = true;
 
-                anim.SetTrigger("dobleSalto");
             }
+        }
+
+        if(grounded == true)
+        {
+            MovimientoEnProceso = false;
+            saltoActivado = false;
         }
        
 
@@ -691,6 +822,35 @@ public class playercontroller : MonoBehaviour {
     }
 
 
+    private bool cambioGravedad;
+    private float tiempoParaCAmbiar;
+    private float gravedadVariable;
+
+    void InvercionDeGravedad()
+    {
+        
+
+        if (Input.GetButtonDown("Dash") && cambioGravedad == false && Time.time >= tiempoParaCAmbiar)
+        {
+            rb2d.gravityScale = 0;
+            Physics2D.gravity = new Vector2(0, 9);
+            puwerJump = puwerJump * -1;
+            gameObject.transform.Rotate(180, gameObject.transform.rotation.y, 0);
+            cambioGravedad = !cambioGravedad;
+            tiempoParaCAmbiar = Time.time + 0.1f;
+        }
+        if (Input.GetButtonDown("Dash") && cambioGravedad == true && Time.time >= tiempoParaCAmbiar)
+        {
+            rb2d.gravityScale = 0;
+            Physics2D.gravity = new Vector2(0, -9);
+            puwerJump = puwerJump * -1;
+            gameObject.transform.Rotate(180, gameObject.transform.rotation.y, 0);
+            cambioGravedad = !cambioGravedad;
+            tiempoParaCAmbiar = Time.time + 0.1f;
+        }
+    }
+
+
 
     private void ComprovadoresDeInputs()
     {
@@ -704,13 +864,11 @@ public class playercontroller : MonoBehaviour {
         }
     }
 
-
-
-
     private void OnDrawGizmos()
     {
         Gizmos.DrawLine(gameObject.transform.position, mira.position);
         Gizmos.DrawWireSphere(meleePos.position, meleeRange);
-        Gizmos.DrawWireSphere(pisoT.position, areaPiso);
+        Gizmos.DrawWireSphere(pisoT.position,  areaPiso);
+        Gizmos.DrawWireSphere(mira.position, radioDeDenegacion);
     }
 }
