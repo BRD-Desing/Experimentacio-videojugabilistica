@@ -161,7 +161,7 @@ public class brazocontroller : MonoBehaviour {
         anim.SetBool ("invis", invis);
         anim.SetBool ("MeleeMod", meleeMo);
         anim.SetInteger ("tipoDisparo", tipoDeBala);
-        anim.SetBool ("disparando", clic);
+        anim.SetBool ("disparando", disparando);
         anim.SetBool ("plasma", plasma);
         anim.SetInteger ("sobrecarga", cargaDelPrizma);
 
@@ -186,7 +186,6 @@ public class brazocontroller : MonoBehaviour {
         } else if (meleeMo == true) {
             CancelInvoke ("DisparoRapido");
             CancelInvoke ("EsferaMetamorfosis");
-            CancelInvoke ("Fire");
             invis = meleeMo;
         }
 
@@ -217,8 +216,6 @@ public class brazocontroller : MonoBehaviour {
             esperateTantito = Time.time + 0.2f;
             CancelInvoke ("DisparoRapido");
             CancelInvoke ("EsferaMetamorfosis");
-            CancelInvoke ("Bash");
-            CancelInvoke ("Fire");
 
             switch (tipoDeBala) {
                 case 1:
@@ -295,8 +292,6 @@ public class brazocontroller : MonoBehaviour {
             esperateTantito = Time.time + 0.2f;
             CancelInvoke ("DisparoRapido");
             CancelInvoke ("EsferaMetamorfosis");
-            CancelInvoke ("Fire");
-            CancelInvoke ("Bash");
 
             switch (tipoDeBala) {
                 case 1:
@@ -766,15 +761,18 @@ public class brazocontroller : MonoBehaviour {
                     clic = disparando;
                     if (disparando == true && dispararConDelay == true && delayT <= Time.time && municion > 0) {
                         delayT = Time.time + 0.385f;
+                        anim.SetTrigger("dispara");
                         dispararConDelay = false;
                     }
                     if (disparando == true && tiempoEntreBalas32 <= Time.time && delayT <= Time.time) {
                         Instantiate (BashBullet, MU4Point.position, MU4Point.rotation);
+                        anim.SetTrigger("dispara");
                         tiempoEntreBalas32 = Time.time + 0.385f;
                         municion -= 1;
                     }
 
                     if (disparando == false) {
+                        anim.ResetTrigger("dispara");
                         dispararConDelay = true;
                     }
                 }
