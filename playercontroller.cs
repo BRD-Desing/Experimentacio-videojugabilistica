@@ -25,8 +25,17 @@ public class playercontroller : MonoBehaviour {
 
     //Chunches para las habilidades
     public int tipoHabilidadCuchillo;
+
+    public int tipoHabilidadSecundaria1;
+    public int tipoHabilidadSecundaria2;
     public int TipoDeMovimiento;
     public int TipoUlti;
+
+    private bool llamado = true;
+    private bool impulsor;
+    private bool escudoActivo;
+    public float vidaEscudo;
+    public float vidaMáximaEscudo;
 
     public bool MovimientoEnProceso = false;
     public bool EnLaHabilidad = false;
@@ -108,12 +117,12 @@ public class playercontroller : MonoBehaviour {
 
         puedeRotar = true;
         canDash = true;
-        llamado = true;
         tiempoColdDownHabilidad = 0;
         antesDeLaEntrada = true;
 
         mira.position = Input.mousePosition;
         llamado = true;
+        resetteo = false;
 
     }
 
@@ -129,10 +138,9 @@ public class playercontroller : MonoBehaviour {
         anim.SetBool ("enLaHabilidad", EnLaHabilidad);
         anim.SetBool ("enLaUlti", EnLaUlti);
         anim.SetBool ("HMovimiento", MovimientoEnProceso);
-        anim.SetBool ("RoketP", golpeCohete);
+        anim.SetBool ("RoketP", speedPunch);
 
-        anim.SetInteger ("TipoHabilidad", TipoUlti);
-        anim.SetInteger ("HCuchillo", tipoHabilidadCuchillo);
+        anim.SetInteger ("TipoUlti", TipoUlti);
         anim.SetInteger ("TipoMovimiento", TipoDeMovimiento);
 
         grounded = Physics2D.OverlapCircle (pisoT.position, areaPiso, whatIsGround);
@@ -142,7 +150,7 @@ public class playercontroller : MonoBehaviour {
         miraX += Input.GetAxis ("Mouse X") * sensibilidadDelMouse;
         miraY += Input.GetAxis ("Mouse Y") * sensibilidadDelMouse;
 
-        meleeMode = brazoContainer.GetComponent<brazocontroller>().meleeMo;
+        meleeMode = brazoContainer.GetComponent<brazocontroller> ().meleeMo;
 
         //Mouse
 
@@ -157,7 +165,6 @@ public class playercontroller : MonoBehaviour {
                 Input.mousePosition.y,
                 10));
         }
-
 
         mira.position = new Vector2 (Mathf.Clamp (mira.position.x, gameObject.transform.position.x + -11.25f, gameObject.transform.position.x + 11.25f),
             Mathf.Clamp (mira.position.y, gameObject.transform.position.y + -7, gameObject.transform.position.y + 7));
@@ -231,11 +238,8 @@ public class playercontroller : MonoBehaviour {
             }
         }
 
-        impulsor = Input.GetButton ("Fire2");
-
         CheckDash ();
         Habilidad1Cuchillo ();
-        GolpeImpulsor ();
         HabilidadesSecundarias ();
         contenedor.transform.position = gameObject.transform.position;
 
@@ -271,16 +275,17 @@ public class playercontroller : MonoBehaviour {
     public int mirarA;
 
     private bool backDashActivado;
-    private bool puedeInvocar = true;
+    private bool puedeInvocar;
+    private bool animDeHabilidad = true;
+    private bool ReposoEscudo;
 
     public float antesDeDesplasarce;
     public float delayDespazamiento;
 
     private float tiempoAntesDaño;
     private bool antesDeLaEntrada;
+
     private void MeleeA () {
-        anim.SetInteger ("TipoMelee", meleeTipe);
-        anim.SetInteger ("HCuchillo", tipoHabilidadCuchillo);
 
         if (Time.time >= tiempoPrarElSiguiemte && grounded == true) {
 
@@ -292,9 +297,6 @@ public class playercontroller : MonoBehaviour {
                 tiempoPrarElSiguiemte = Time.time + 1f / Mtiempo;
                 meleeTipe = Random.Range (1, 4);
                 melee = true;
-
-
-                Debug.Log("ataca con melee");
 
                 anim.SetTrigger ("melee");
 
@@ -312,6 +314,11 @@ public class playercontroller : MonoBehaviour {
 
     }
 
+    //	HHHH	HHHH		AAAA		BBBBBBB		IIIIII       MMMMMM
+    //	HHHH	HHHH	   AAAAAA		BB	 BBB	 IIII       MMM  MMM
+    //	HHHHHHHHHHHH	  AAAAAAAA		BBBBBB		 IIII           MMM
+    //	HHHH	HHHH	 AAAA  AAAA		BB   BBB	 IIII         MMM
+    //	HHHH	HHHH	AAAA	AAAA	BBBBBBB		IIIIII      MMMMMMMM
     void EnEsperaDelBackDash () {
         if (Time.time >= tiempoPrarElSiguiemte && clicder == false) {
             tiempoDeLaHabilidad = 0.5f;
@@ -319,7 +326,11 @@ public class playercontroller : MonoBehaviour {
             clicder = true;
             backDashActivado = true;
 
-            anim.SetTrigger ("meleeHabilidad");
+            if (puedeInvocar == false) {
+                anim.SetTrigger ("BackD");
+                BrazoAnim.SetTrigger("invisible");
+                puedeInvocar = true;
+            }
 
             meleeHTiempoReferencia = tiempoDeDuracionDeLaHabilidadMelee;
             delayDespazamiento = antesDeDesplasarce;
@@ -332,7 +343,6 @@ public class playercontroller : MonoBehaviour {
             if (delayDespazamiento > 0) {
                 delayDespazamiento -= Time.deltaTime;
                 canMoeve = false;
-
             } else if (delayDespazamiento <= 0) {
                 if (meleeHTiempoReferencia > 0) {
                     meleeHTiempoReferencia -= Time.deltaTime;
@@ -354,113 +364,65 @@ public class playercontroller : MonoBehaviour {
             if (meleeHTiempoReferencia <= 0) {
                 BrazoAnim.SetTrigger ("CambioDeArma");
                 canMoeve = true;
+                EnLaHabilidad = false;
                 tiempoPrarElSiguiemte = Time.time + 0.6f / Mtiempo;
                 tiempoDeEsperaAntesDeDisparar = Time.time + 1;
                 backDashActivado = false;
-                puedeInvocar = true;
                 clicder = false;
             }
         }
     }
 
-    private bool llamado = true;
-    private bool impulsor;
-
     private bool speedPunch;
-    void Impulsor () {
+    private bool resetteo;
 
-        puedeRotar = true;
-        if (impulsor == true && tiempoColdDownHabilidad <= 0 && MovimientoEnProceso == false) {
-            if (tiempoTotalDelGolpe <= 0.7f) {
-                tiempoTotalDelGolpe += Time.deltaTime;
-                referenciaDelGolpe = Time.time + tiempoTotalDelGolpe;
-                rb2d.velocity = new Vector2 (0, rb2d.velocity.y);
-            }
-            if (llamado == true) {
-                anim.SetTrigger ("meleeHabilidad");
-                llamado = false;
-            }
-            canJump = false;
-            canMoeve = false;
-            EnLaHabilidad = true;
+    private bool entraEnElReseteoDelGolpe;
 
-            tiempoDeLaHabilidad = tiempoTotalDelGolpe;
+    void GolpeImpulsor () {
+        rb2d.velocity = new Vector2 (velocidadDelGolpe * mirarA, rb2d.velocity.y);
+        Collider2D[] punchEnemies = Physics2D.OverlapCircleAll (meleePos.position, meleeRange, enemiSet);
 
-            if (mira.transform.position.x < gameObject.transform.position.x) {
-                if (rotado) {
-                    Rotado ();
-                }
-
-            } else if (mira.transform.position.x > gameObject.transform.position.x) {
-                if (!rotado) {
-                    Rotado ();
-                }
-            }
-
-            if (mira.transform.position.x > gameObject.transform.position.x) {
-                mirarA = 1;
-            } else if (mira.transform.position.x <= gameObject.transform.position.x) {
-                mirarA = -1;
-            }
-        }
-
-        if (impulsor == false && tiempoTotalDelGolpe > 0.00000 && llamado == false && EnLaHabilidad == true) {
-            if (llamado == false) {
-                llamado = true;
-            }
-
-            if (tiempoTotalDelGolpe <= 0.2f && tiempoTotalDelGolpe > 0) {
-                tiempoTotalDelGolpe = 0.2f;
-                referenciaDelGolpe = Time.time + tiempoTotalDelGolpe;
-            }
-            speedPunch = true;
-            golpeCohete = true;
-
+        foreach (Collider2D enemyP in punchEnemies) {
+            enemyP.GetComponent<EnemyController> ().Damage (tiempoTotalDelGolpe * 100);
+            enemyP.GetComponent<EnemyController> ().Empujon (tiempoTotalDelGolpe * mirarA * 60, 7);
+            resetteo = true;
         }
 
     }
 
-    private bool golpeCohete;
-    void GolpeImpulsor () {
-
-        if (speedPunch == true) {
-
-            if (referenciaDelGolpe > Time.time) {
-
-                EnLaHabilidad = true;
-                speedPunch = EnLaHabilidad;
-                puedeRotar = false;
-                rb2d.velocity = new Vector2 (velocidadDelGolpe * mirarA, rb2d.velocity.y);
-                tiempoColdDownHabilidad = tiempoTotalDelGolpe * 4;
-                Collider2D[] punchEnemies = Physics2D.OverlapCircleAll (meleePos.position, meleeRange, enemiSet);
-
-                foreach (Collider2D enemyP in punchEnemies) {
-                    enemyP.GetComponent<EnemyController> ().Damage (tiempoTotalDelGolpe * 90);
-                    enemyP.GetComponent<EnemyController> ().Empujon (tiempoTotalDelGolpe * mirarA * 20, 7);
-                    golpeCohete = false;
-                    puedeRotar = true;
-                    canJump = true;
-                    canMoeve = true;
-                    speedPunch = false;
-                    EnLaHabilidad = false;
-                    BrazoAnim.SetTrigger ("CambioDeArma");
-                    tiempoDeEsperaAntesDeDisparar = Time.time + 1;
-
-                    tiempoTotalDelGolpe = 0;
+    private void Escudo () {
+        anim.SetBool ("Escudo", escudoActivo);
+        if (vidaEscudo > 0) {
+            if (escudoActivo == true) {
+                if (animDeHabilidad == true) {
+                    anim.SetTrigger ("Escudo_Entrada");
+                    BrazoAnim.SetTrigger("invisible");
+                    animDeHabilidad = false;
                 }
-            } else if (referenciaDelGolpe <= Time.time) {
-                golpeCohete = false;
-                puedeRotar = true;
-                canJump = true;
-                canMoeve = true;
-                speedPunch = false;
-                EnLaHabilidad = false;
-                BrazoAnim.SetTrigger ("CambioDeArma");
-                tiempoDeEsperaAntesDeDisparar = Time.time + 1;
-                tiempoTotalDelGolpe = 0;
-
+                canJump = false;
+                EnLaHabilidad = true;
+                speed = 4;
             }
+        } else if (vidaEscudo <= 0) {
+            ReposoEscudo = true;
+            escudoActivo = false;
+            canJump = true;
+        }
 
+        if (vidaEscudo >= 10) {
+            ReposoEscudo = false;
+        }
+
+        if (escudoActivo == false) {
+            if (vidaEscudo <= vidaMáximaEscudo) {
+                vidaEscudo += 0.25f;
+            }
+            speed = 8;
+            canJump = true;
+            if (animDeHabilidad == false) {
+                resetteo = true;
+                animDeHabilidad = true;
+            }
         }
     }
 
@@ -473,22 +435,170 @@ public class playercontroller : MonoBehaviour {
     private bool puedeAccederAlArma;
 
     void HabilidadesSecundarias () {
-
-        //   HHH
-        //  HHHH
-        //   HHH
-        //   HHH
-        //  HHHHH
-
-        if (tipoHabilidadCuchillo == 1 && Input.GetButtonDown ("Fire2") && MovimientoEnProceso == false) {
-            EnEsperaDelBackDash ();
+        if (resetteo == true) {
+            puedeRotar = true;
+            tiempoColdDownHabilidad = Time.time + tiempoTotalDelGolpe * 10;
+            canJump = true;
+            canMoeve = true;
+            speedPunch = false;
+            EnLaHabilidad = false;
+            BrazoAnim.SetTrigger ("CambioDeArma");
+            referenciaDelGolpe = 0;
+            resetteo = false;
         }
 
-        //  D
-        //  O
-        //  S
-        if (tipoHabilidadCuchillo == 2) {
-            Impulsor ();
+        if (MovimientoEnProceso == false) {
+
+            switch (tipoHabilidadSecundaria1) {
+                case 1:
+                    if (EnLaHabilidad == false) {
+                        if (Input.GetButtonDown ("Habilidad 1")) {
+                            EnEsperaDelBackDash ();
+                        }
+                    }
+                    break;
+                case 2:
+                    impulsor = Input.GetButton ("Habilidad 1");
+                    if (tiempoColdDownHabilidad <= Time.time) {
+                        if (escudoActivo == false) {
+                            if (speedPunch == false) {
+                                if (impulsor == true) {
+                                    puedeRotar = true;
+                                    EnLaHabilidad = true;
+                                    canJump = false;
+                                    canMoeve = false;
+                                    if (llamado == true) {
+                                        anim.SetTrigger ("Golpe");
+                                        BrazoAnim.SetTrigger("invisible");
+                                        llamado = false;
+                                    }
+                                    if (mira.transform.position.x < gameObject.transform.position.x) {
+                                        if (rotado) {
+                                            Rotado ();
+                                        }
+
+                                    } else if (mira.transform.position.x > gameObject.transform.position.x) {
+                                        if (!rotado) {
+                                            Rotado ();
+                                        }
+                                    }
+                                    if (mira.transform.position.x > gameObject.transform.position.x) {
+                                        mirarA = 1;
+                                    } else if (mira.transform.position.x <= gameObject.transform.position.x) {
+                                        mirarA = -1;
+                                    }
+                                    if (referenciaDelGolpe < 0.7) {
+                                        referenciaDelGolpe += Time.deltaTime;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (impulsor == false && referenciaDelGolpe > 0) {
+                        GolpeImpulsor ();
+                        referenciaDelGolpe -= Time.deltaTime;
+                        speedPunch = true;
+                        EnLaHabilidad = true;
+                        if (llamado == false) {
+                            entraEnElReseteoDelGolpe = true;
+                            tiempoTotalDelGolpe = referenciaDelGolpe;
+                            if (referenciaDelGolpe <= 0.2) {
+                                referenciaDelGolpe = 0.2f;
+                            }
+                            llamado = true;
+                        }
+                    } else if (referenciaDelGolpe <= 0 && entraEnElReseteoDelGolpe == true) {
+                        resetteo = true;
+                        entraEnElReseteoDelGolpe = false;
+                    }
+                    break;
+                case 3:
+                    if (ReposoEscudo == false) {
+                        if (vidaEscudo >= 10) {
+                            escudoActivo = Input.GetButton ("Habilidad 1");
+                        }
+                    }
+                    Escudo ();
+                    break;
+
+            }
+
+            switch (tipoHabilidadSecundaria2) {
+                case 1:
+                    if (Input.GetButtonDown ("Habilidad 2")) {
+                        EnEsperaDelBackDash ();
+                    }
+
+                    break;
+                case 2:
+                    impulsor = Input.GetButton ("Habilidad 2");
+
+                    if (tiempoColdDownHabilidad <= Time.time) {
+                        if (escudoActivo == false) {
+                            if (speedPunch == false) {
+                                if (impulsor == true) {
+                                    puedeRotar = true;
+                                    EnLaHabilidad = true;
+                                    canJump = false;
+                                    canMoeve = false;
+                                    if (llamado == true) {
+                                        anim.SetTrigger ("Golpe");
+                                        BrazoAnim.SetTrigger("invisible");
+                                        llamado = false;
+                                    }
+                                    if (mira.transform.position.x < gameObject.transform.position.x) {
+                                        if (rotado) {
+                                            Rotado ();
+                                        }
+
+                                    } else if (mira.transform.position.x > gameObject.transform.position.x) {
+                                        if (!rotado) {
+                                            Rotado ();
+                                        }
+                                    }
+                                    if (mira.transform.position.x > gameObject.transform.position.x) {
+                                        mirarA = 1;
+                                    } else if (mira.transform.position.x <= gameObject.transform.position.x) {
+                                        mirarA = -1;
+                                    }
+                                    if (referenciaDelGolpe < 0.7) {
+                                        referenciaDelGolpe += Time.deltaTime;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (impulsor == false && referenciaDelGolpe > 0) {
+                        GolpeImpulsor ();
+                        referenciaDelGolpe -= Time.deltaTime;
+                        speedPunch = true;
+                        EnLaHabilidad = true;
+                        if (llamado == false) {
+                            entraEnElReseteoDelGolpe = true;
+                            tiempoTotalDelGolpe = referenciaDelGolpe;
+                            if (referenciaDelGolpe <= 0.2) {
+                                referenciaDelGolpe = 0.2f;
+                            }
+                            llamado = true;
+                        }
+                    } else if (referenciaDelGolpe <= 0 && entraEnElReseteoDelGolpe == true) {
+                        resetteo = true;
+                        entraEnElReseteoDelGolpe = false;
+                    }
+                    break;
+                case 3:
+                    if (ReposoEscudo == false) {
+                        if (vidaEscudo >= 10) {
+                            escudoActivo = Input.GetButton ("Habilidad 2");
+                        }
+                    }
+                    Escudo ();
+                    break;
+
+            }
+
         }
     }
 
@@ -565,7 +675,7 @@ public class playercontroller : MonoBehaviour {
             rb2d.gravityScale = 0;
             rb2d.velocity = new Vector2 (0, 0);
             canMoeve = false;
-            anim.SetTrigger("EntraLaUlti");
+            anim.SetTrigger ("EntraLaUlti");
             tiempoDeLaUlti = 15f;
             brazo.GetComponent<brazocontroller> ().invis = true;
             Instantiate (areaDeEfecto, gameObject.transform.position, Quaternion.identity);
@@ -620,7 +730,7 @@ public class playercontroller : MonoBehaviour {
         if (EnLaHabilidad == false) {
             if (Vector3.Distance (gameObject.transform.position, mira.position) <= 18 && Input.GetButtonDown ("Dash") && inicio == false && noAquiNo == false) {
                 mouseP = mira.position;
-                Instantiate(estrellaTeleport, mira.position, mira.rotation);
+                Instantiate (estrellaTeleport, mira.position, mira.rotation);
 
                 MovimientoEnProceso = true;
                 canMoeve = false;
@@ -687,24 +797,17 @@ public class playercontroller : MonoBehaviour {
     private bool acelerao = false;
     private float nitroTime;
     void Aceleracion () {
-        if (nitroTime != 0) {
-            nitroTime -= Time.deltaTime;
-        }
-        if (nitroTime <= 0) {
-            acelerao = false;
-        }
 
         if (Input.GetButtonDown ("Dash") && acelerao == false) {
             acelerao = true;
-            nitroTime = 10;
+            nitroTime = Time.time + 10;
             tiempoColddownMovimiento = 2;
-            speed = 15;
+            speed = 18;
             puwerJump = 60;
-        }
-
-        if (nitroTime <= 0) {
-            speed = 8;
-            puwerJump = 20;
+            if (nitroTime <= Time.time) {
+                speed = 8;
+                puwerJump = 20;
+            }
         }
     }
 
@@ -713,7 +816,19 @@ public class playercontroller : MonoBehaviour {
     }
 
     public void ResivirDaño (float daño) {
-        vida -= daño;
+
+        if (escudoActivo == false) {
+            vida -= daño;
+        }
+
+        if (escudoActivo == true) {
+            vidaEscudo -= daño;
+        }
+
+        while (vidaEscudo < 0) {
+            vidaEscudo++;
+            vida--;
+        }
     }
 
     public void Impulsos (float X, float Y) {
